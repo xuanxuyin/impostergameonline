@@ -213,6 +213,7 @@ function layout({
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   <meta name="twitter:image" content="${OG_IMAGE_URL}" />
   <link rel="stylesheet" href="/assets/styles.css" />
+  <script defer src="https://www.pvuv.ai/f.js" data-site="gLYtLpxc" data-api="https://in.pvuv.ai"></script>
   ${schemaScript}
 </head>
 <body>
