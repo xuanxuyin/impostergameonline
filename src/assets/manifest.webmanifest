@@ -1,0 +1,17 @@
+{
+  "name": "Imposter Game Online",
+  "short_name": "ImposterGame",
+  "description": "Play free Imposter Game Online — Word Imposter, Question Imposter, Ranking 1-10, Solo vs AI Bots & Daily Puzzle.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080d1a",
+  "theme_color": "#ff4d6d",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
