@@ -34,9 +34,9 @@
         ${
           current
             ? `<div class="generator-result">
-                 <div class="role-pill" style="background:rgba(56,189,248,0.2);color:#bae6fd;display:inline-block;">${current.emoji} ${current.category}</div>
+                 <div class="role-pill" style="background:var(--accent-soft);color:var(--accent);display:inline-block;">${current.emoji} ${current.category}</div>
                  <div class="secret-word" id="gen-secret-text">${current.word}</div>
-                 <div class="role-hint" style="display:inline-block;">Imposter Hint: <strong>${current.hint}</strong></div>
+                 <div class="mini-tag" style="background:var(--bg-elevated);color:var(--text);display:inline-block;padding:0.4rem 0.85rem;font-size:0.88rem;">Imposter Hint: <strong>${current.hint}</strong></div>
                </div>`
             : ''
         }

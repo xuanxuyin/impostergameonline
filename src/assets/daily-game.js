@@ -79,10 +79,10 @@
 
         <div class="solo-role-banner crew">
           <div>
-            <div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;color:#6ee7b7;">Today's Secret Word</div>
+            <div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;color:var(--crew);">Today's Secret Word</div>
             <div style="font-size:1.45rem;font-weight:900;">${p.secretWord}</div>
           </div>
-          <div class="role-hint">Category: <strong>${p.category}</strong></div>
+          <div class="mini-tag" style="background:var(--bg-elevated);color:var(--text);">Category: <strong>${p.category}</strong></div>
         </div>
 
         <p class="stage-sub" style="margin-bottom:0.85rem;">One of these 4 suspects did NOT know the secret word. Spot the clue that doesn't fit!</p>

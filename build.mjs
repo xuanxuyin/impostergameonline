@@ -195,7 +195,7 @@ function layout({
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}" />
-  <meta name="theme-color" content="#080d1a" />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
   <link rel="apple-touch-icon" href="/assets/favicon.svg" />
@@ -380,20 +380,20 @@ const PAGES = [
       ]
     },
     bodyHtml: `
-      <section class="hero">
-        <div class="badge">Free Browser Party Arcade • 1–12 Players • No Download</div>
+      <div id="play-now"></div>
+      ${gameAppContainer('everyday-food')}
+
+      <section class="hero hero-compact">
+        <div class="badge">Online Multiplayer • Pass Phone • Solo vs AI</div>
         <h1>Imposter Game Online — Free Imposter Word Game</h1>
-        <p>Find the Imposter — or fool everyone trying. Play Solo against smart AI Bots, solve today's Daily Puzzle, or gather friends for Word, Question, and Ranking Imposter modes right in your browser.</p>
+        <p>Find the Imposter — or fool everyone trying. Create a private or public online room with a 6-digit code, pass one phone with friends, or play solo against AI bots right in your browser.</p>
       </section>
 
       ${arcadeHubGrid()}
 
-      <div id="play-now"></div>
-      ${gameAppContainer('everyday-food')}
-
       <section class="content-section">
         <h2>Compare All Imposter Game Modes</h2>
-        <p><strong>ImposterGameOnline.net</strong> offers four distinct ways to play the classic Imposter deduction game free online with zero downloads or sign-ups:</p>
+        <p><strong>ImposterGameOnline.net</strong> offers five ways to play the classic Imposter deduction game free online with zero downloads or sign-ups:</p>
         <div class="table-wrap">
           <table class="geo-table">
             <thead>
@@ -406,28 +406,34 @@ const PAGES = [
             </thead>
             <tbody>
               <tr>
+                <td><strong>Online Multiplayer Rooms</strong></td>
+                <td data-label="Players">3–10 (+ AI Bots)</td>
+                <td data-label="Best For">Remote friends &amp; quick match</td>
+                <td data-label="How It Plays">Join via 6-digit room code or public lobby, receive private server cards, submit 1-word clues, and vote live.</td>
+              </tr>
+              <tr>
                 <td><strong>Imposter Word Game</strong></td>
-                <td>1 (vs AI) or 3–12</td>
-                <td>Anytime solo or party play</td>
-                <td>Give 1-word clues about a secret word and vote out the clueless Imposter.</td>
+                <td data-label="Players">1 (vs AI) or 3–12</td>
+                <td data-label="Best For">Anytime solo or party play</td>
+                <td data-label="How It Plays">Give 1-word clues about a secret word and vote out the clueless Imposter.</td>
               </tr>
               <tr>
                 <td><strong>Imposter Question Game</strong></td>
-                <td>3–10</td>
-                <td>Laugh-out-loud group nights</td>
-                <td>Everyone answers a secret question while the Imposter answers a twisted version.</td>
+                <td data-label="Players">3–10</td>
+                <td data-label="Best For">Laugh-out-loud group nights</td>
+                <td data-label="How It Plays">Everyone answers a secret question while the Imposter answers a twisted version.</td>
               </tr>
               <tr>
                 <td><strong>Ranking Imposter (1–10)</strong></td>
-                <td>3–10</td>
-                <td>Fast 2-minute debates</td>
-                <td>Rate a secret prompt from 1–10 and spot whose score doesn't match the group.</td>
+                <td data-label="Players">3–10</td>
+                <td data-label="Best For">Fast 2-minute debates</td>
+                <td data-label="How It Plays">Rate a secret prompt from 1–10 and spot whose score doesn't match the group.</td>
               </tr>
               <tr>
                 <td><strong>Daily Imposter Puzzle</strong></td>
-                <td>1 Player</td>
-                <td>Daily streak &amp; brain warm-up</td>
-                <td>Read 4 suspects' clues for today's secret word and accuse the bluffing Imposter.</td>
+                <td data-label="Players">1 Player</td>
+                <td data-label="Best For">Daily streak &amp; brain warm-up</td>
+                <td data-label="How It Plays">Read 4 suspects' clues for today's secret word and accuse the bluffing Imposter.</td>
               </tr>
             </tbody>
           </table>
