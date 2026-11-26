@@ -1,6 +1,8 @@
 import { CATEGORIES } from '../../src/data/site.mjs';
 import { BOT_PROFILES, SOLO_WORDS } from '../../src/data/botClues.mjs';
 
+const RECONNECT_GRACE_MS = 60_000;
+
 const AVATAR_COLORS = [
   '#007cff',
   '#ff0030',
@@ -132,10 +134,96 @@ export class RoomEngine {
     this.createdAt = Date.now();
     this.updatedAt = Date.now();
     this._botActionToken = 0;
+    this.reconnectUntil = 0;
   }
 
   _touch() {
     this.updatedAt = Date.now();
+  }
+
+  snapshot() {
+    const { hooks, _botActionToken, ...data } = this;
+    return data;
+  }
+
+  restore(snapshot) {
+    Object.assign(this, snapshot);
+    // Standard WebSocket connections do not survive an instance restart.
+    const interrupted = this.hasConnectedHumans();
+    for (const player of this.players) player.connected = player.isBot;
+    if (interrupted) {
+      this._touch();
+      this.reconnectUntil = this.updatedAt + RECONNECT_GRACE_MS;
+    }
+    return interrupted;
+  }
+
+  canResetFeatured(token) {
+    return !this.hasConnectedHumans() && Date.now() >= this.reconnectUntil &&
+      !this.playerForReconnect(token);
+  }
+
+  releaseLobbySeats(rejoiningPlayer) {
+    if (this.phase !== 'lobby' || Date.now() < this.reconnectUntil) return false;
+    const available = this.players.filter((p) => p.connected || p.isBot || p === rejoiningPlayer);
+    if (available.length === this.players.length) return false;
+    this.players = available;
+    this._ensureHost();
+    return true;
+  }
+
+  reconnectCheckAt() {
+    if (!this.reconnectUntil || !this.players.some((p) => !p.isBot && !p.connected)) {
+      return Infinity;
+    }
+    return this.phase === 'lobby' ||
+      ((this.phase === 'reveal' || this.phase === 'vote') && this.hasConnectedHumans())
+      ? this.reconnectUntil : Infinity;
+  }
+
+  finishReconnectGrace() {
+    if (!this.reconnectUntil || Date.now() < this.reconnectUntil) return false;
+    this.reconnectUntil = 0;
+    if (this.releaseLobbySeats()) {
+      this._emitUpdate();
+      return true;
+    }
+    return this._advanceWhenReady();
+  }
+
+  _advanceWhenReady() {
+    if ((this.phase !== 'reveal' && this.phase !== 'vote') || !this.hasConnectedHumans()) {
+      return false;
+    }
+    const inGrace = Date.now() < this.reconnectUntil;
+    const humans = this.players.filter((p) => !p.isBot && (p.connected || inGrace));
+    if (this.phase === 'reveal' && humans.every((p) => p.ready)) {
+      this._enterCluesPhase();
+      return true;
+    }
+    if (this.phase === 'vote' && humans.every((p) => this.votes.has(p.id))) {
+      this._finishVote();
+      return true;
+    }
+    return false;
+  }
+
+  playerForReconnect(token) {
+    if (typeof token !== 'string' || token.length !== 36) return undefined;
+    return this.players.find((player) => !player.isBot && player.reconnectToken === token);
+  }
+
+  joinPlayer(token, name) {
+    const existing = this.playerForReconnect(token);
+    const wasEmpty = !this.hasConnectedHumans();
+    this.releaseLobbySeats(existing);
+    const result = this.addPlayer(
+      existing?.id ?? crypto.randomUUID(),
+      name,
+      existing?.reconnectToken ?? crypto.randomUUID()
+    );
+    if (result.ok && wasEmpty) this._maybeScheduleBotClue();
+    return result;
   }
 
   _nextColor() {
@@ -152,8 +240,8 @@ export class RoomEngine {
 
   _emitUpdate() {
     this._touch();
-    if (this.hooks.broadcastState) this.hooks.broadcastState();
     if (this.hooks.onSummaryChange) this.hooks.onSummaryChange(this.getPublicSummary());
+    if (this.hooks.broadcastState) this.hooks.broadcastState();
   }
 
   hasConnectedHumans() {
@@ -245,7 +333,7 @@ export class RoomEngine {
     };
   }
 
-  addPlayer(playerId, rawName) {
+  addPlayer(playerId, rawName, reconnectToken) {
     const existing = this.players.find((p) => p.id === playerId);
     if (existing) {
       existing.connected = true;
@@ -266,6 +354,7 @@ export class RoomEngine {
     const name = sanitizeText(rawName, 18) || `Player ${this.players.length + 1}`;
     const player = {
       id: playerId,
+      reconnectToken,
       name,
       color: this._nextColor(),
       isHost: this.players.every((p) => p.isBot),
@@ -290,24 +379,15 @@ export class RoomEngine {
     }
     this._ensureHost();
 
-    // Prevent mid-game stalls when a player drops out
-    const connectedHumans = this.players.filter((p) => !p.isBot && p.connected);
-    if (connectedHumans.length > 0) {
-      if (this.phase === 'reveal' && connectedHumans.every((p) => p.ready)) {
-        this._enterCluesPhase();
-        return;
-      }
-      if (this.phase === 'clues' && this.turnOrder[this.turnIndex] === playerId) {
-        this._emitUpdate();
-        this._maybeScheduleBotClue();
-        return;
-      }
-      if (this.phase === 'vote' && connectedHumans.every((p) => this.votes.has(p.id))) {
-        this._finishVote();
-        return;
-      }
+    const hasHumans = this.hasConnectedHumans();
+    if (!hasHumans && this.phase !== 'lobby') {
+      this.reconnectUntil = Date.now() + RECONNECT_GRACE_MS;
     }
+    if (this._advanceWhenReady()) return;
     this._emitUpdate();
+    if (hasHumans && this.phase === 'clues' && this.turnOrder[this.turnIndex] === playerId) {
+      this._maybeScheduleBotClue();
+    }
   }
 
   addBot(requesterId) {
@@ -407,6 +487,9 @@ export class RoomEngine {
   startGame(requesterId) {
     const host = this.players.find((p) => p.id === requesterId);
     if (!host || !host.isHost) return { ok: false, error: 'Only host can start the game.' };
+    if (this.phase === 'lobby' && this.players.some((p) => !p.isBot && !p.connected)) {
+      return { ok: false, error: 'Wait for disconnected players to rejoin.' };
+    }
     if (this.players.length < 3) return { ok: false, error: 'Need at least 3 players (or add AI Bots) to start.' };
 
     const chosen = this._pickWord();
@@ -438,15 +521,9 @@ export class RoomEngine {
   playerReady(playerId) {
     if (this.phase !== 'reveal') return;
     const p = this.players.find((pl) => pl.id === playerId);
-    if (!p) return;
+    if (!p || p.ready) return;
     p.ready = true;
-
-    const allHumansReady = this.players.filter((pl) => !pl.isBot && pl.connected).every((pl) => pl.ready);
-    if (allHumansReady) {
-      this._enterCluesPhase();
-    } else {
-      this._emitUpdate();
-    }
+    if (!this._advanceWhenReady()) this._emitUpdate();
   }
 
   advanceToClues(requesterId) {
@@ -492,8 +569,8 @@ export class RoomEngine {
 
     const token = ++this._botActionToken;
     const run = () => {
-      if (this._botActionToken !== token || this.phase !== 'clues') return;
-      if (this.turnOrder[this.turnIndex] !== currentId) return;
+      if (this._botActionToken !== token || this.phase !== 'clues' || !this.hasConnectedHumans()) return;
+      if (this.turnOrder[this.turnIndex] !== currentId || (!current.isBot && current.connected)) return;
       const clue = current.isBot ? this._pickBotClue(currentId) : '(skipped)';
       this.clues.push({ playerId: currentId, clue });
       this.turnIndex += 1;
@@ -506,7 +583,7 @@ export class RoomEngine {
     };
 
     if (this.hooks.schedule) {
-      this.hooks.schedule(run, current.isBot ? 900 : 200);
+      this.hooks.schedule(run, current.isBot ? 900 : Math.max(200, this.reconnectUntil - Date.now()));
     } else {
       run();
     }
@@ -562,16 +639,9 @@ export class RoomEngine {
     if (voterId === targetId) return { ok: false, error: 'Cannot vote for yourself.' };
     if (!this.players.some((p) => p.id === targetId)) return { ok: false, error: 'Invalid player.' };
 
+    if (this.votes.get(voterId) === targetId) return { ok: true };
     this.votes.set(voterId, targetId);
-    const allHumansVoted = this.players
-      .filter((p) => !p.isBot && p.connected)
-      .every((p) => this.votes.has(p.id));
-
-    if (allHumansVoted) {
-      this._finishVote();
-    } else {
-      this._emitUpdate();
-    }
+    if (!this._advanceWhenReady()) this._emitUpdate();
     return { ok: true };
   }
 

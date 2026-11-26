@@ -82,15 +82,6 @@
     return a;
   }
 
-  function getSavedPlayerId() {
-    let id = localStorage.getItem('igo_player_id');
-    if (!id) {
-      id = `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-      localStorage.setItem('igo_player_id', id);
-    }
-    return id;
-  }
-
   const urlParams = new URLSearchParams(location.search);
   const initialRoomParam = (urlParams.get('room') || '').replace(/\D/g, '').slice(0, 6);
 
@@ -138,7 +129,6 @@
     soloGames: 0,
     soloUsedWords: new Set(),
     // Online Multiplayer state
-    playerId: getSavedPlayerId(),
     nickname: localStorage.getItem('igo_nickname') || '',
     publicRooms: [],
     totalOnline: 0,
@@ -280,13 +270,23 @@
     const ws = new WebSocket(`${WS_BASE}/api/rooms/${cleanCode}/ws`);
     state.ws = ws;
 
+    const reconnectKey = `igo_room_token_${cleanCode}`;
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'join', playerId: state.playerId, name: cleanName }));
+      ws.send(JSON.stringify({
+        type: 'join',
+        reconnectToken: localStorage.getItem(reconnectKey),
+        name: cleanName
+      }));
     };
 
     ws.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
+      if (state.ws !== ws) return;
+      if (msg.type === 'joined') {
+        if (typeof msg.reconnectToken === 'string') localStorage.setItem(reconnectKey, msg.reconnectToken);
+        return;
+      }
       if (msg.type === 'error') {
         state.onlineError = msg.message || 'Room error';
         render();
@@ -312,6 +312,7 @@
     };
 
     ws.onerror = () => {
+      if (state.ws !== ws) return;
       state.onlineError = `Could not connect to Room #${cleanCode}. Check the code or server status.`;
       render();
     };
@@ -322,7 +323,10 @@
         if (state.phase === 'online-room') {
           state.phase = 'setup';
           state.room = null;
-          if (!state.onlineError) state.onlineError = 'Disconnected from room.';
+          state.subview = null;
+          state.joinExpanded = true;
+          state.joinCodeInput = cleanCode;
+          if (!state.onlineError) state.onlineError = 'Disconnected from room. Join again to reconnect.';
           render();
         }
       }

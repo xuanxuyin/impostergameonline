@@ -92,6 +92,16 @@ function broadcastRoom(entry) {
   for (const [client, playerId] of entry.clients.entries()) {
     client.send(entry.engine.getStateForPlayer(playerId));
   }
+  const checkAt = entry.engine.reconnectCheckAt();
+  if (checkAt === entry.reconnectCheckAt) return;
+  clearTimeout(entry.reconnectTimer);
+  entry.reconnectCheckAt = checkAt;
+  if (Number.isFinite(checkAt)) {
+    entry.reconnectTimer = setTimeout(() => {
+      entry.reconnectCheckAt = undefined;
+      entry.engine.finishReconnectGrace();
+    }, Math.max(0, checkAt - Date.now()));
+  }
 }
 
 function readJsonBody(req) {
@@ -170,15 +180,7 @@ server.on('upgrade', (req, socket) => {
 
   let entry = rooms.get(match[1]);
   const preset = getDefaultPublicRoom(match[1]);
-  if (preset && (!entry || !entry.engine.hasConnectedHumans())) {
-    entry = { engine: null, clients: new Map() };
-    entry.engine = new RoomEngine(match[1], { ...preset, isPublic: true }, {
-      broadcastState: () => broadcastRoom(entry),
-      schedule: (fn, ms) => setTimeout(fn, ms)
-    });
-    rooms.set(match[1], entry);
-  }
-  if (!entry) {
+  if (!entry && !preset) {
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
     socket.destroy();
     return;
@@ -203,15 +205,36 @@ server.on('upgrade', (req, socket) => {
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
 
+      if (!msg || typeof msg.type !== 'string') return;
+
       if (msg.type === 'join') {
-        playerId = msg.playerId || `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        entry.clients.set(client, playerId);
-        const res = entry.engine.addPlayer(playerId, msg.name);
+        if (playerId) return;
+        const current = rooms.get(match[1]);
+        if (preset && (!current || current.engine.canResetFeatured(msg.reconnectToken))) {
+          entry = { engine: null, clients: new Map() };
+          entry.engine = new RoomEngine(match[1], { ...preset, isPublic: true }, {
+            broadcastState: () => broadcastRoom(entry),
+            schedule: (fn, ms) => setTimeout(fn, ms)
+          });
+          rooms.set(match[1], entry);
+        } else {
+          entry = current;
+        }
+        if (!entry) {
+          send({ type: 'error', message: 'Room expired.' });
+          client.close();
+          return;
+        }
+        const res = entry.engine.joinPlayer(msg.reconnectToken, msg.name);
         if (!res.ok) {
           send({ type: 'error', message: res.error });
-          entry.clients.delete(client);
           client.close();
+          return;
         }
+        playerId = res.player.id;
+        entry.clients.set(client, playerId);
+        send({ type: 'joined', reconnectToken: res.player.reconnectToken });
+        send(entry.engine.getStateForPlayer(playerId));
         return;
       }
 
