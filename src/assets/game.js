@@ -596,7 +596,7 @@
 
     return `
       <div class="subview-header">
-        <button type="button" class="circle-back-btn" id="btn-subview-back" aria-label="Back">‹</button>
+        <button type="button" class="circle-back-btn" id="btn-subview-back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
         <h2>Players (${state.playerCount})</h2>
       </div>
       <div class="player-edit-list">${rows}</div>
@@ -633,7 +633,7 @@
 
     return `
       <div class="subview-header">
-        <button type="button" class="circle-back-btn" id="btn-subview-back" aria-label="Back">‹</button>
+        <button type="button" class="circle-back-btn" id="btn-subview-back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
         <h2>Categories</h2>
       </div>
       <div class="ios-group">${rows}</div>

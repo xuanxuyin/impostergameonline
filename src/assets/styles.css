@@ -584,20 +584,25 @@ a:hover {
 }
 
 .circle-back-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border-radius: 50%;
   border: none;
   background: var(--cta-bg);
   color: var(--cta-text);
-  font-size: 1.15rem;
-  font-weight: 900;
+  line-height: 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.12s ease;
+  box-shadow: 0 2px 8px rgba(0, 20, 47, 0.14);
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+
+.circle-back-btn svg {
+  transform: translateX(-1px);
 }
 
 .circle-back-btn:active {
