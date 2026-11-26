@@ -2,6 +2,10 @@ name = "impostergameonline-api"
 main = "src/index.mjs"
 compatibility_date = "2026-11-01"
 
+routes = [
+  { pattern = "api.impostergameonline.net", custom_domain = true }
+]
+
 [durable_objects]
 bindings = [
   { name = "ROOMS", class_name = "RoomDO" },
