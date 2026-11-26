@@ -191,9 +191,18 @@
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
-  function avatarHtml(idx, customProfile) {
+  function playerMonogram(name, idx) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return String(idx + 1);
+    const defaultMatch = trimmed.match(/^player\s+(\d+)$/i);
+    if (defaultMatch) return defaultMatch[1];
+    return Array.from(trimmed)[0].toUpperCase();
+  }
+
+  function avatarHtml(idx, customProfile, nameOverride) {
     const p = customProfile || AVATAR_POOL[idx % AVATAR_POOL.length];
-    return `<span class="avatar-badge" style="background:${p.color}22;border-color:${p.color};">${p.icon}</span>`;
+    const label = playerMonogram(nameOverride || customProfile?.name || state.players[idx], idx);
+    return `<span class="avatar-badge" data-avatar-idx="${idx}" style="background:${p.color};">${escapeHtml(label)}</span>`;
   }
 
   function initialAvatarHtml(initial, color) {
@@ -1526,7 +1535,10 @@
       document.querySelectorAll('.player-name-input').forEach((input) => {
         input.oninput = (e) => {
           const idx = Number(e.target.dataset.idx);
-          state.players[idx] = e.target.value || `Player ${idx + 1}`;
+          const nextName = e.target.value || `Player ${idx + 1}`;
+          state.players[idx] = nextName;
+          const badge = e.target.parentElement?.querySelector('.avatar-badge');
+          if (badge) badge.textContent = playerMonogram(nextName, idx);
         };
       });
       document.querySelectorAll('[data-remove-player]').forEach((btn) => {
