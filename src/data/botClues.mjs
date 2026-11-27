@@ -32,5 +32,19 @@ export const SOLO_WORDS = [
   { word: 'Cafeteria', category: 'School & Campus', hint: 'Lunch trays', clues: ['Tray', 'Lunch', 'Tables', 'Line', 'Milk', 'Noisy'], bluffs: ['Food', 'School', 'Crowded', 'Break', 'Friends'] },
   { word: 'Taylor Swift', category: 'Pop Culture & Celebrities', hint: 'Eras tour', clues: ['Eras', 'Bracelets', 'Guitar', 'Stadium', 'Lyrics', 'Tour'], bluffs: ['Music', 'Famous', 'Charts', 'Singer', 'Fans'] },
   { word: 'TikTok', category: 'Pop Culture & Celebrities', hint: 'Short scroll', clues: ['Scroll', 'Trends', 'Dances', 'For-You', 'Audio', 'Swipe'], bluffs: ['Phone', 'Viral', 'App', 'Hours', 'Videos'] },
-  { word: 'Dinosaur', category: 'Kids Friendly', hint: 'Giant fossil', clues: ['Fossil', 'T-Rex', 'Extinct', 'Roar', 'Museum', 'Prehistoric'], bluffs: ['Giant', 'Ancient', 'Scary', 'Movies', 'Cool'] }
+  { word: 'Dinosaur', category: 'Kids Friendly', hint: 'Giant fossil', clues: ['Fossil', 'T-Rex', 'Extinct', 'Roar', 'Museum', 'Prehistoric'], bluffs: ['Giant', 'Ancient', 'Scary', 'Movies', 'Cool'] },
+  { word: 'Nike', category: 'Brands & Logos', hint: 'Swoosh checkmark', clues: ['Swoosh', 'Sneakers', 'Jordans', 'Running', 'Athletic', 'Checkmark'], bluffs: ['Famous', 'Store', 'Clothes', 'Logo', 'Popular'] },
+  { word: 'IKEA', category: 'Brands & Logos', hint: 'Flatpack maze', clues: ['Meatballs', 'Assembly', 'Swedish', 'Maze', 'Wrench', 'Furniture'], bluffs: ['Shopping', 'Big', 'Home', 'Blue', 'Weekend'] },
+  { word: 'McDonalds', category: 'Brands & Logos', hint: 'Golden arches', clues: ['Arches', 'Nuggets', 'Drive-thru', 'Fries', 'Happy-Meal', 'Clown'], bluffs: ['Fast', 'Food', 'Cheap', 'Everywhere', 'Lunch'] },
+  { word: 'Tesla', category: 'Brands & Logos', hint: 'Electric autopilot', clues: ['Electric', 'Charging', 'Autopilot', 'Silent', 'Cybertruck', 'Battery'], bluffs: ['Cars', 'Future', 'Tech', 'Expensive', 'Fast'] },
+  { word: 'Oreo', category: 'Brands & Logos', hint: 'Twist and dunk', clues: ['Milk', 'Twist', 'Cream', 'Black-white', 'Cookie', 'Dunk'], bluffs: ['Sweet', 'Snack', 'Pack', 'Classic', 'Treat'] },
+  { word: 'Naruto', category: 'Anime & Manga', hint: 'Orange ninja', clues: ['Headband', 'Ramen', 'Clones', 'Ninja', 'Fox', 'Hokage'], bluffs: ['Anime', 'Fighting', 'Hero', 'Action', 'Classic'] },
+  { word: 'One Piece', category: 'Anime & Manga', hint: 'Straw hat crew', clues: ['Pirates', 'Straw-hat', 'Treasure', 'Ship', 'Rubber', 'Episodes'], bluffs: ['Adventure', 'Ocean', 'Long', 'Famous', 'Team'] },
+  { word: 'Attack on Titan', category: 'Anime & Manga', hint: 'Giant walls', clues: ['Walls', 'Giants', 'Blades', 'Scouts', 'Survey', 'Colossal'], bluffs: ['Intense', 'Dark', 'Action', 'Series', 'Drama'] },
+  { word: 'Pikachu', category: 'Anime & Manga', hint: 'Yellow sparks', clues: ['Lightning', 'Yellow', 'Cheeks', 'Pokeball', 'Ash', 'Tail'], bluffs: ['Cute', 'Iconic', 'Mascot', 'Cartoon', 'Famous'] },
+  { word: 'GTA 5', category: 'Video Games', hint: 'Three-hero heist', clues: ['Heist', 'Wanted-stars', 'Cars', 'Los-Santos', 'Open-world', 'Chaos'], bluffs: ['Gaming', 'Action', 'Huge', 'Online', 'Classic'] },
+  { word: 'Clash Royale', category: 'Video Games', hint: 'Three-tower deck', clues: ['Elixir', 'Towers', 'Deck', 'Hog-Rider', 'Arena', 'Emotes'], bluffs: ['Mobile', 'Strategy', 'Fast', 'Matches', 'Cards'] },
+  { word: 'Rocket League', category: 'Video Games', hint: 'Car soccer boost', clues: ['Boost', 'Aerial', 'Goal', 'Cars', 'Flip', 'Arena'], bluffs: ['Fast', 'Team', 'Sports', 'Competitive', 'Online'] },
+  { word: 'Rickroll', category: 'Internet & Memes', hint: 'Surprise link song', clues: ['Link', 'Prank', 'Never-gonna', 'YouTube', '80s', 'Tricked'], bluffs: ['Funny', 'Classic', 'Internet', 'Song', 'Viral'] },
+  { word: 'Ghosting', category: 'Internet & Memes', hint: 'Left on read forever', clues: ['Ignored', 'Silence', 'Texting', 'Disappear', 'Read', 'Vanish'], bluffs: ['Awkward', 'Dating', 'Phone', 'Modern', 'Rude'] }
 ];

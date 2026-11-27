@@ -42,7 +42,8 @@ export const DEFAULT_PUBLIC_ROOMS = [
   { code: '100001', name: 'Food & Drinks', emoji: '🍕', categories: ['everyday-food'], maxPlayers: 8, imposterCount: 1, imposterHint: true },
   { code: '100002', name: 'Movies & TV', emoji: '🎬', categories: ['movies-tv'], maxPlayers: 8, imposterCount: 1, imposterHint: true },
   { code: '100003', name: 'Sports & Games', emoji: '🎮', categories: ['sports-games'], maxPlayers: 8, imposterCount: 1, imposterHint: true },
-  { code: '100004', name: 'Pop Culture', emoji: '🌟', categories: ['pop-culture'], maxPlayers: 8, imposterCount: 1, imposterHint: true }
+  { code: '100004', name: 'Pop Culture', emoji: '🌟', categories: ['pop-culture'], maxPlayers: 8, imposterCount: 1, imposterHint: true },
+  { code: '100005', name: 'Brands & Logos', emoji: '🏷️', categories: ['brands-logos'], maxPlayers: 8, imposterCount: 1, imposterHint: true }
 ];
 
 export function getDefaultPublicRoom(code) {
@@ -107,6 +108,7 @@ export class RoomEngine {
     this.maxPlayers = Math.max(3, Math.min(10, Number(options.maxPlayers) || 8));
     this.imposterCount = Math.max(1, Math.min(3, Number(options.imposterCount) || 1));
     this.imposterHint = options.imposterHint !== false;
+    this.lastChanceGuess = Boolean(options.lastChanceGuess);
     this.timerMinutes = Number.isFinite(Number(options.timerMinutes)) ? Number(options.timerMinutes) : 2;
     this.categories =
       Array.isArray(options.categories) && options.categories.length
@@ -130,6 +132,7 @@ export class RoomEngine {
     this.turnIndex = 0;
     this.clues = []; // { playerId, clue }
     this.votes = new Map(); // voterId -> targetId
+    this.guessContext = null; // { imposterId, ejectedId, options, voteCounts }
     this.result = null;
     this.createdAt = Date.now();
     this.updatedAt = Date.now();
@@ -177,7 +180,7 @@ export class RoomEngine {
       return Infinity;
     }
     return this.phase === 'lobby' ||
-      ((this.phase === 'reveal' || this.phase === 'vote') && this.hasConnectedHumans())
+      ((this.phase === 'reveal' || this.phase === 'vote' || this.phase === 'imposter_guess') && this.hasConnectedHumans())
       ? this.reconnectUntil : Infinity;
   }
 
@@ -192,10 +195,29 @@ export class RoomEngine {
   }
 
   _advanceWhenReady() {
-    if ((this.phase !== 'reveal' && this.phase !== 'vote') || !this.hasConnectedHumans()) {
+    if (
+      this.phase !== 'reveal' &&
+      this.phase !== 'vote' &&
+      this.phase !== 'imposter_guess'
+    ) {
       return false;
     }
     const inGrace = Date.now() < this.reconnectUntil;
+    if (this.phase === 'imposter_guess' && this.guessContext) {
+      const imp = this.players.find((p) => p.id === this.guessContext.imposterId);
+      if (!inGrace && (!imp || !imp.connected)) {
+        this._finalizeResult({
+          isTie: false,
+          ejectedId: this.guessContext.ejectedId,
+          crewWon: true,
+          voteCounts: this.guessContext.voteCounts,
+          imposterStole: false,
+          guessedWord: null
+        });
+        return true;
+      }
+      return false;
+    }
     const humans = this.players.filter((p) => !p.isBot && (p.connected || inGrace));
     if (this.phase === 'reveal' && humans.every((p) => p.ready)) {
       this._enterCluesPhase();
@@ -307,6 +329,7 @@ export class RoomEngine {
         maxPlayers: this.maxPlayers,
         imposterCount: this.imposterCount,
         imposterHint: this.imposterHint,
+        lastChanceGuess: this.lastChanceGuess,
         timerMinutes: this.timerMinutes,
         categories: this.categories,
         players: this.players.map((p) => ({
@@ -328,6 +351,10 @@ export class RoomEngine {
         votedCount: this.votes.size,
         totalVoters: this.players.length,
         myVote: this.votes.get(playerId) || null,
+        guess:
+          this.phase === 'imposter_guess' && this.guessContext
+            ? { imposterId: this.guessContext.imposterId, options: this.guessContext.options }
+            : null,
         result: this.phase === 'result' ? this.result : null
       }
     };
@@ -380,7 +407,7 @@ export class RoomEngine {
     this._ensureHost();
 
     const hasHumans = this.hasConnectedHumans();
-    if (!hasHumans && this.phase !== 'lobby') {
+    if ((!hasHumans && this.phase !== 'lobby') || (this.phase === 'imposter_guess' && this.guessContext?.imposterId === playerId)) {
       this.reconnectUntil = Date.now() + RECONNECT_GRACE_MS;
     }
     if (this._advanceWhenReady()) return;
@@ -433,6 +460,7 @@ export class RoomEngine {
     if (this.phase !== 'lobby') return { ok: false, error: 'Settings can only change in lobby.' };
 
     if (typeof patch.imposterHint === 'boolean') this.imposterHint = patch.imposterHint;
+    if (typeof patch.lastChanceGuess === 'boolean') this.lastChanceGuess = patch.lastChanceGuess;
     if (patch.imposterCount !== undefined) {
       const maxImp = Math.max(1, Math.min(3, Math.floor((Math.max(3, this.players.length) - 1) / 2)));
       this.imposterCount = Math.max(1, Math.min(maxImp, Number(patch.imposterCount) || 1));
@@ -510,6 +538,7 @@ export class RoomEngine {
     this.turnIndex = 0;
     this.clues = [];
     this.votes = new Map();
+    this.guessContext = null;
     this.result = null;
     this.phase = 'reveal';
     this._botActionToken += 1;
@@ -672,18 +701,44 @@ export class RoomEngine {
     const ejectedId = isTie ? null : topIds[0];
     const crewWon = ejectedId !== null && this.imposterIds.has(ejectedId);
 
+    const voteCounts = {};
+    for (const [id, count] of tally.entries()) voteCounts[id] = count;
+
+    const ejectedPlayer = ejectedId ? this.players.find((p) => p.id === ejectedId) : null;
+    if (this.lastChanceGuess && crewWon && ejectedPlayer && !ejectedPlayer.isBot && ejectedPlayer.connected) {
+      const cat = CATEGORIES.find((c) => c.name === this.secretCategory) || CATEGORIES[0];
+      const distractors = shuffle(cat.words.map((w) => w.word).filter((w) => w !== this.secretWord)).slice(0, 3);
+      while (distractors.length < 3) {
+        const fallback = CATEGORIES[0].words[Math.floor(Math.random() * CATEGORIES[0].words.length)].word;
+        if (fallback !== this.secretWord && !distractors.includes(fallback)) distractors.push(fallback);
+      }
+      this.guessContext = {
+        imposterId: ejectedId,
+        ejectedId,
+        options: shuffle([this.secretWord, ...distractors]),
+        voteCounts
+      };
+      this.phase = 'imposter_guess';
+      this._emitUpdate();
+      return;
+    }
+
+    this._finalizeResult({ isTie, ejectedId, crewWon, voteCounts, imposterStole: false, guessedWord: null });
+  }
+
+  _finalizeResult({ isTie, ejectedId, crewWon, voteCounts, imposterStole, guessedWord }) {
     this.players.forEach((p) => {
       if (crewWon && !this.imposterIds.has(p.id)) p.score += 1;
       else if (!crewWon && this.imposterIds.has(p.id)) p.score += 2;
     });
 
-    const voteCounts = {};
-    for (const [id, count] of tally.entries()) voteCounts[id] = count;
-
+    this.guessContext = null;
     this.result = {
       isTie,
       ejectedId,
       crewWon,
+      imposterStole: Boolean(imposterStole),
+      guessedWord: guessedWord || null,
       secretWord: this.secretWord,
       secretCategory: this.secretCategory,
       imposterIds: Array.from(this.imposterIds),
@@ -691,6 +746,35 @@ export class RoomEngine {
     };
     this.phase = 'result';
     this._emitUpdate();
+  }
+
+  submitGuess(playerId, rawWord) {
+    if (this.phase !== 'imposter_guess' || !this.guessContext) return { ok: false, error: 'Not in guess phase.' };
+    if (playerId !== this.guessContext.imposterId) return { ok: false, error: 'Only the caught Imposter can guess.' };
+    const guessed = sanitizeText(rawWord, 40);
+    const stole = guessed.toLowerCase() === this.secretWord.toLowerCase();
+    this._finalizeResult({
+      isTie: false,
+      ejectedId: this.guessContext.ejectedId,
+      crewWon: !stole,
+      voteCounts: this.guessContext.voteCounts,
+      imposterStole: stole,
+      guessedWord: guessed
+    });
+    return { ok: true, stole };
+  }
+
+  skipGuess(requesterId) {
+    const host = this.players.find((p) => p.id === requesterId);
+    if (!host || !host.isHost || this.phase !== 'imposter_guess' || !this.guessContext) return;
+    this._finalizeResult({
+      isTie: false,
+      ejectedId: this.guessContext.ejectedId,
+      crewWon: true,
+      voteCounts: this.guessContext.voteCounts,
+      imposterStole: false,
+      guessedWord: null
+    });
   }
 
   nextRound(requesterId) {
@@ -714,6 +798,7 @@ export class RoomEngine {
     this.players = this.players.filter((p) => p.isBot || p.connected);
     this._ensureHost();
     this.phase = 'lobby';
+    this.guessContext = null;
     this._botActionToken += 1;
     this._emitUpdate();
   }
@@ -730,6 +815,8 @@ export class RoomEngine {
     if (msg.type === 'advance_vote') return this.advanceToVote(playerId);
     if (msg.type === 'cast_vote') return this.castVote(playerId, msg.targetId);
     if (msg.type === 'finish_vote') return this.forceFinishVote(playerId);
+    if (msg.type === 'submit_guess') return this.submitGuess(playerId, msg.word);
+    if (msg.type === 'skip_guess') return this.skipGuess(playerId);
     if (msg.type === 'next_round') return this.nextRound(playerId);
     if (msg.type === 'back_lobby') return this.backToLobby(playerId);
     return null;

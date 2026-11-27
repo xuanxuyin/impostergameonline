@@ -73,8 +73,8 @@ const ARCADE_CARDS = [
   {
     href: '/imposter-game-words/',
     title: 'Imposter Game Words',
-    pill: '200+ Words',
-    desc: 'Browse 200+ free imposter words & hints or roll a random word instantly.',
+    pill: '300+ Free Words',
+    desc: 'Browse 300+ free imposter words & hints across 12 packs — zero app-locked packs.',
     color: 'card-violet',
     icon: ICONS.generator,
     tags: '1p,daily'
@@ -150,6 +150,7 @@ function layout({
   const canonical = slug === '' ? `${SITE.url}/` : `${SITE.url}/${slug}/`;
   const navItems = [
     { href: '/', label: 'All Games', key: '' },
+    { href: '/online/', label: 'Online', key: 'online' },
     { href: '/daily-imposter/', label: 'Daily Puzzle', key: 'daily-imposter' },
     { href: '/question-imposter/', label: 'Questions', key: 'question-imposter' },
     { href: '/ranking-imposter/', label: 'Ranking', key: 'ranking-imposter' },
@@ -259,8 +260,8 @@ function layout({
 </html>`;
 }
 
-function gameAppContainer(defaultCategory = 'everyday-food') {
-  return `<section class="game-shell" id="imposter-game-app" data-default-category="${defaultCategory}" aria-label="Imposter Game">
+function gameAppContainer(defaultCategory = 'everyday-food', defaultMode = '') {
+  return `<section class="game-shell" id="imposter-game-app" data-default-category="${defaultCategory}"${defaultMode ? ` data-default-mode="${defaultMode}"` : ''} aria-label="Imposter Game">
     <noscript>Please enable JavaScript to play Imposter Game Online.</noscript>
   </section>`;
 }
@@ -303,7 +304,7 @@ function editionCrossLinks(currentSlug) {
     { slug: 'question-imposter', href: '/question-imposter/', title: 'Imposter Question Game', desc: 'Answer secret questions and expose who got the fake prompt.' },
     { slug: 'ranking-imposter', href: '/ranking-imposter/', title: 'Ranking Imposter (1–10)', desc: 'Secret 1–10 scale party game with hilarious score reveals.' },
     { slug: 'daily-imposter', href: '/daily-imposter/', title: 'Daily Imposter Puzzle', desc: 'One fresh deduction mystery every day with streak tracking.' },
-    { slug: 'imposter-game-words', href: '/imposter-game-words/', title: 'Imposter Game Words (200+)', desc: 'Browse 200+ free imposter words & hints across 8 packs.' },
+    { slug: 'imposter-game-words', href: '/imposter-game-words/', title: 'Imposter Game Words (300+)', desc: 'Browse 300+ free imposter words & hints across 12 packs.' },
     { slug: 'imposter-game-unblocked', href: '/imposter-game-unblocked/', title: 'Imposter Game Unblocked', desc: 'Fast HTML5 edition built for Chromebooks and study hall.' }
   ].filter((e) => e.slug !== currentSlug);
 
@@ -343,7 +344,7 @@ const HOME_FAQS = [
   },
   {
     q: 'Where can I find free Imposter Game words?',
-    a: 'Visit our Imposter Game Words page (/imposter-game-words/) to roll random secret words and Imposter hints or browse 200+ curated words across 8 categories.'
+    a: 'Visit our Imposter Game Words page (/imposter-game-words/) to roll random secret words and Imposter hints or browse 300+ curated words across 12 free categories — with zero app-only locked packs.'
   }
 ];
 
@@ -480,6 +481,56 @@ const PAGES = [
     `
   },
   {
+    slug: 'online',
+    title: 'Play Imposter Game Online Multiplayer — Public & Private Rooms',
+    description:
+      'Play Imposter Game Online Multiplayer with friends or strangers! Create a 6-digit private room, join open public lobbies, add AI bots, and catch the Imposter live in your browser.',
+    includeGame: true,
+    schemaJson: buildGamePageSchema(
+      'online',
+      'Imposter Game Online Multiplayer',
+      'Live browser multiplayer Imposter Word Game with 6-digit private rooms, public lobbies, AI bot backfill, and Imposter last-chance guess.'
+    ),
+    bodyHtml: `
+      <div id="play-now"></div>
+      ${gameAppContainer('everyday-food', 'online')}
+
+      <section class="hero hero-compact">
+        <div class="badge">Live Multiplayer • 6-Digit Room Codes • 12 Free Packs</div>
+        <h1>Imposter Game Online Multiplayer</h1>
+        <p>Create a private room with a 6-digit code, join an open public lobby, or fill empty seats with AI bots. Every word pack — including Brands, Anime, and Movies — is 100% free in your browser.</p>
+      </section>
+
+      <section class="content-section">
+        <h2>How Online Multiplayer Rooms Work</h2>
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Create or Join a Room</h3>
+            <p>Tap <strong>Create Room</strong> for a private 6-digit invite link or join any open Public Lobby instantly.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Private Server Cards</h3>
+            <p>Each player's role is sent privately from our Cloudflare server — the Imposter never receives the secret word.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Turn-Based Clues &amp; Vote</h3>
+            <p>Submit one-word clues in turn order (or talk on Discord), then cast anonymous votes to eject the suspect.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h3>Last-Chance Word Steal</h3>
+            <p>When Last-Chance Guess is enabled, a caught Imposter gets one 4-choice shot to guess the secret word and steal the win!</p>
+          </div>
+        </div>
+      </section>
+
+      ${editionCrossLinks('online')}
+    `
+  },
+  {
     slug: 'question-imposter',
     title: 'Imposter Question Game — Free Imposter Questions Online',
     description:
@@ -592,13 +643,13 @@ const PAGES = [
     ),
     bodyHtml: `
       <section class="hero">
-        <div class="badge">200+ Curated Imposter Words &amp; Hints</div>
+        <div class="badge">300+ Curated Imposter Words &amp; Hints</div>
         <h1>Imposter Game Words &amp; Free Word Generator</h1>
-        <p>Need fresh secret words for your tabletop, Discord, or in-person Imposter game? Roll a random word with a matching Imposter hint or browse all 200+ Imposter words across 8 themed packs below.</p>
+        <p>Need fresh secret words for your tabletop, Discord, or in-person Imposter game? Roll a random word with a matching Imposter hint or browse all 300+ Imposter words across 12 themed packs below.</p>
       </section>
       <div id="word-generator-app"></div>
       <section class="content-section">
-        <h2>Complete List of 200+ Imposter Game Words by Category</h2>
+        <h2>Complete List of 300+ Imposter Game Words by Category</h2>
         ${CATEGORIES.map(
           (cat) => `
           <h3>${cat.emoji} ${escapeHtml(cat.name)} (${cat.words.length} Words)</h3>
@@ -750,7 +801,7 @@ ${urls
     (u, idx) => `  <url>
     <loc>${u}</loc>
     <lastmod>${today}</lastmod>
-    <priority>${idx === 0 ? '1.0' : idx <= 7 ? '0.9' : '0.4'}</priority>
+    <priority>${idx === 0 ? '1.0' : idx <= 8 ? '0.9' : '0.4'}</priority>
   </url>`
   )
   .join('\n')}
@@ -778,11 +829,12 @@ Sitemap: ${SITE.url}/sitemap.xml
 > Free browser-based Imposter Word Game and social deduction party arcade. Play solo against AI bots, solve today's Daily Imposter Puzzle, or play Pass & Play with 3–12 friends with zero downloads or sign-ups.
 
 ## Core Game Modes
-- [Imposter Game Online — Word Imposter](${SITE.url}/): Classic secret-word social deduction game featuring Solo vs AI Bots (1 player) and Pass & Play (3–12 players), 200+ words across 8 packs, custom words, and discussion timer.
+- [Imposter Game Online — Word Imposter](${SITE.url}/): Classic secret-word social deduction game featuring Online Multiplayer (6-digit rooms & public lobbies), Pass & Play (with Undercover mode), Solo vs AI Bots, and 300+ free words across 12 packs (no app-locked packs).
+- [Imposter Game Online Multiplayer](${SITE.url}/online/): Dedicated multiplayer lobby page to create private 6-digit rooms, join public lobbies, add AI bots, and play with Imposter Last-Chance Guess.
 - [Imposter Question Game](${SITE.url}/question-imposter/): Pass-and-play party game where innocent players answer a secret question while the Imposter answers a subtly twisted question.
 - [Ranking Imposter (1–10 Scale)](${SITE.url}/ranking-imposter/): Secret 1-to-10 rating game where the Imposter rates a different topic and tries to blend in.
 - [Daily Imposter Puzzle](${SITE.url}/daily-imposter/): Daily single-player deduction challenge with 4 suspects, streak tracking, and spoiler-free result sharing.
-- [Imposter Game Words & Generator](${SITE.url}/imposter-game-words/): 200+ curated Imposter words and Imposter hints across 8 themed categories (Food, Movies & TV, US Cities, Animals, School, Sports & Games, Pop Culture, Kids).
+- [Imposter Game Words & Generator](${SITE.url}/imposter-game-words/): 300+ curated Imposter words and Imposter hints across 12 free categories (Food, Movies & TV, US Cities, Animals, School, Sports & Games, Pop Culture, Kids, Brands & Logos, Anime & Manga, Video Games, Internet & Memes).
 - [Imposter Game Unblocked](${SITE.url}/imposter-game-unblocked/): Lightweight native HTML5 edition designed for instant loading on school Chromebooks and restricted networks.
 
 ## Key Facts

@@ -18,8 +18,9 @@
   }
 
   function render() {
-    const options = `<option value="all" ${selectedCat === 'all' ? 'selected' : ''}>All Categories (200 Words)</option>` +
-      categories.map((c) => `<option value="${c.id}" ${selectedCat === c.id ? 'selected' : ''}>${c.emoji} ${c.name}</option>`).join('');
+    const totalWords = categories.reduce((sum, c) => sum + c.words.length, 0);
+    const options = `<option value="all" ${selectedCat === 'all' ? 'selected' : ''}>All Categories (${totalWords} Words)</option>` +
+      categories.map((c) => `<option value="${c.id}" ${selectedCat === c.id ? 'selected' : ''}>${c.emoji} ${c.name} (${c.words.length})</option>`).join('');
 
     root.innerHTML = `
       <div class="game-shell">

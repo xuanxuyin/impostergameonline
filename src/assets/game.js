@@ -84,15 +84,17 @@
 
   const urlParams = new URLSearchParams(location.search);
   const initialRoomParam = (urlParams.get('room') || '').replace(/\D/g, '').slice(0, 6);
+  const defaultModeAttr = root.dataset.defaultMode || '';
 
   const state = {
-    mode: initialRoomParam.length === 6 ? 'online' : 'passplay', // 'passplay' | 'online' | 'solo'
+    mode: initialRoomParam.length === 6 ? 'online' : (defaultModeAttr === 'online' || defaultModeAttr === 'solo' ? defaultModeAttr : 'passplay'), // 'passplay' | 'online' | 'solo'
     phase: 'setup', // setup | reveal | discuss | vote | result | solo-play | solo-guess | solo-result | online-room
     subview: null, // null | 'players' | 'categories' | 'online-categories'
     // Pass & Play state
     playerCount: 4,
     imposterCount: 1,
     imposterHint: true,
+    undercoverMode: false,
     timerMinutes: 2,
     selectedCategories: new Set([defaultCategory]),
     useCustomWord: false,
@@ -104,6 +106,7 @@
     currentRevealIdx: 0,
     cardFlipped: false,
     secretWord: '',
+    undercoverWord: '',
     secretHint: '',
     secretCategory: '',
     imposterIndices: new Set(),
@@ -503,6 +506,13 @@
     state.secretHint = chosen.hint;
     state.secretCategory = chosen.category;
 
+    // Pick a different related word from the same category for Undercover mode
+    const sameCat = categories.find((c) => c.name === chosen.category) || categories[0];
+    const altPool = sameCat.words.filter((w) => w.word !== chosen.word);
+    state.undercoverWord = altPool.length
+      ? altPool[Math.floor(Math.random() * altPool.length)].word
+      : 'Mystery';
+
     const indices = shuffle(Array.from({ length: state.playerCount }, (_, i) => i));
     state.imposterIndices = new Set(indices.slice(0, state.imposterCount));
     state.firstSpeakerIdx = Math.floor(Math.random() * state.playerCount);
@@ -714,6 +724,17 @@
           </div>
           <label class="toggle">
             <input type="checkbox" id="toggle-hint" ${state.imposterHint ? 'checked' : ''} />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="ios-row">
+          <div class="ios-row-label">
+            <strong>🕶️ Undercover Mode</strong>
+            <small>Imposter gets a similar word instead of blank</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-undercover" ${state.undercoverMode ? 'checked' : ''} />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -992,6 +1013,16 @@
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
+                <div class="ios-row">
+                  <div class="ios-row-label">
+                    <strong>⚡ Last-Chance Guess</strong>
+                    <small>Caught Imposter gets 1 shot to steal</small>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" id="online-toggle-guess" ${r.lastChanceGuess ? 'checked' : ''} />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
               </div>
               <button type="button" class="pill-btn pill-btn-black" id="btn-online-start" ${r.players.length < 3 ? 'disabled' : ''}>
                 ${r.players.length < 3 ? `Need ${need} More Player${need > 1 ? 's' : ''} (or Add Bot)` : 'Start Game'}
@@ -1143,6 +1174,38 @@
       `;
     }
 
+    if (r.phase === 'imposter_guess' && r.guess) {
+      const impPlayer = r.players.find((p) => p.id === r.guess.imposterId);
+      const amCaughtImposter = r.guess.imposterId === r.meId;
+      const optBtns = (r.guess.options || [])
+        .map((word) => `<button type="button" class="vote-btn" data-online-guess="${escapeHtml(word)}">${escapeHtml(word)}</button>`)
+        .join('');
+
+      return `
+        <div class="stage">
+          <div class="stage-progress">⚡ Imposter Caught — Last Chance!</div>
+          <h2>${amCaughtImposter ? 'Guess the Secret Word to Steal!' : `${escapeHtml(impPlayer?.name || 'Imposter')} Was Caught!`}</h2>
+          <p class="stage-sub">
+            ${
+              amCaughtImposter
+                ? 'You were voted out! Pick the right secret word below to flip the round and steal the win.'
+                : `Watching ${escapeHtml(impPlayer?.name || 'the Imposter')} take one last shot at guessing the secret word…`
+            }
+          </p>
+          ${
+            amCaughtImposter
+              ? `<div class="guess-grid">${optBtns}</div>`
+              : `<div class="empty-rooms-box" style="margin-bottom:0.85rem;">Waiting for ${escapeHtml(impPlayer?.name || 'Imposter')} to pick from 4 words…</div>`
+          }
+          ${
+            isHost && !amCaughtImposter
+              ? `<button type="button" class="pill-btn pill-btn-soft" id="btn-online-skip-guess">Skip Guess &amp; Show Result</button>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
     if (r.phase === 'result' && r.result) {
       const res = r.result;
       const ejected = r.players.find((p) => p.id === res.ejectedId);
@@ -1175,10 +1238,11 @@
             </div>
           </div>
 
-          <h2>${res.crewWon ? '🎉 Crew Wins!' : '😈 Imposter Escaped!'}</h2>
+          <h2>${res.imposterStole ? '🔥 Imposter Stole the Win!' : res.crewWon ? '🎉 Crew Wins!' : '😈 Imposter Escaped!'}</h2>
           <div class="result-card">
             <p style="margin:0 0 0.45rem;">Imposter${impNames.length > 1 ? 's' : ''}: <strong style="color:var(--brand);">${escapeHtml(impNames.join(', '))}</strong></p>
             <p style="margin:0;">Secret Word: <strong style="color:var(--crew);font-size:1.2rem;">${escapeHtml(res.secretWord)}</strong></p>
+            ${res.imposterStole ? `<p style="margin:0.45rem 0 0;color:var(--brand);font-weight:800;">⚡ Clutch Last-Chance Guess: "${escapeHtml(res.guessedWord || res.secretWord)}"!</p>` : ''}
           </div>
 
           ${
@@ -1365,17 +1429,17 @@
               <strong>Tap to Reveal Role</strong>
               <span>Keep it secret</span>
             </div>
-            <div class="card-face card-back ${isImposter ? 'imposter' : 'crew'}">
-              <div class="role-pill">${isImposter ? 'You Are The Imposter' : 'You Are Innocent'}</div>
+            <div class="card-face card-back ${isImposter && !(state.undercoverMode && !state.useCustomWord) ? 'imposter' : 'crew'}">
+              <div class="role-pill">${isImposter && !(state.undercoverMode && !state.useCustomWord) ? 'You Are The Imposter' : (state.undercoverMode && !state.useCustomWord) ? 'Your Secret Word' : 'You Are Innocent'}</div>
               ${
-                isImposter
+                isImposter && !(state.undercoverMode && !state.useCustomWord)
                   ? `<div class="secret-word">BLEND IN!</div>
                      <div class="role-hint">${
                        state.imposterHint
                          ? `Category: <strong>${escapeHtml(state.secretCategory)}</strong> • Hint: <strong>${escapeHtml(state.secretHint)}</strong>`
                          : 'No hint given — listen carefully!'
                      }</div>`
-                  : `<div class="secret-word">${escapeHtml(state.secretWord)}</div>
+                  : `<div class="secret-word">${escapeHtml(isImposter ? state.undercoverWord : state.secretWord)}</div>
                      <div class="role-hint">Category: <strong>${escapeHtml(state.secretCategory)}</strong></div>`
               }
             </div>
@@ -1466,6 +1530,7 @@
         <div class="result-card">
           <p style="margin:0 0 0.45rem;">The Imposter${impNames.length > 1 ? 's were' : ' was'}: <strong style="color:var(--brand);">${escapeHtml(impNames.join(', '))}</strong></p>
           <p style="margin:0;">Secret Word: <strong style="color:var(--crew);font-size:1.2rem;">${escapeHtml(state.secretWord)}</strong></p>
+          ${state.undercoverMode && !state.useCustomWord ? `<p style="margin:0.45rem 0 0;">Undercover Word: <strong style="color:var(--accent);">${escapeHtml(state.undercoverWord)}</strong></p>` : ''}
         </div>
         <button type="button" class="pill-btn pill-btn-black" id="btn-play-again">Play Next Round</button>
         <button type="button" class="pill-btn pill-btn-soft" id="btn-edit-setup" style="margin-top:0.5rem;">Change Settings</button>
@@ -1596,6 +1661,8 @@
         if (state.imposterCount < maxImp) { state.imposterCount += 1; sfx.click(); render(); }
       };
       document.getElementById('toggle-hint').onchange = (e) => { state.imposterHint = e.target.checked; sfx.click(); };
+      const toggleUndercover = document.getElementById('toggle-undercover');
+      if (toggleUndercover) toggleUndercover.onchange = (e) => { state.undercoverMode = e.target.checked; sfx.click(); };
       document.getElementById('select-timer').onchange = (e) => { state.timerMinutes = Number(e.target.value); sfx.click(); };
       document.getElementById('btn-start').onclick = startPassPlayRound;
     }
@@ -1682,6 +1749,8 @@
       if (impPlus) impPlus.onclick = () => { wsSend({ type: 'update_settings', patch: { imposterCount: state.room.imposterCount + 1 } }); };
       const toggleHint = document.getElementById('online-toggle-hint');
       if (toggleHint) toggleHint.onchange = (e) => { wsSend({ type: 'update_settings', patch: { imposterHint: e.target.checked } }); };
+      const toggleGuess = document.getElementById('online-toggle-guess');
+      if (toggleGuess) toggleGuess.onchange = (e) => { wsSend({ type: 'update_settings', patch: { lastChanceGuess: e.target.checked } }); };
       const startOnline = document.getElementById('btn-online-start');
       if (startOnline) startOnline.onclick = () => { sfx.click(); wsSend({ type: 'start_game' }); };
       const leaveBtn = document.getElementById('btn-leave-room');
@@ -1716,6 +1785,11 @@
       });
       const finishVote = document.getElementById('btn-online-finish-vote');
       if (finishVote) finishVote.onclick = () => { sfx.click(); wsSend({ type: 'finish_vote' }); };
+      document.querySelectorAll('[data-online-guess]').forEach((btn) => {
+        btn.onclick = () => { sfx.click(); wsSend({ type: 'submit_guess', word: btn.dataset.onlineGuess }); };
+      });
+      const skipGuess = document.getElementById('btn-online-skip-guess');
+      if (skipGuess) skipGuess.onclick = () => { sfx.click(); wsSend({ type: 'skip_guess' }); };
       const nextRound = document.getElementById('btn-online-next');
       if (nextRound) nextRound.onclick = () => { sfx.click(); wsSend({ type: 'next_round' }); };
       const backLobby = document.getElementById('btn-online-lobby');
@@ -1768,7 +1842,8 @@
       const flipAction = () => {
         if (!state.cardFlipped) {
           state.cardFlipped = true;
-          if (state.imposterIndices.has(state.currentRevealIdx)) sfx.imposter();
+          const undercoverActive = state.undercoverMode && !state.useCustomWord;
+          if (state.imposterIndices.has(state.currentRevealIdx) && !undercoverActive) sfx.imposter();
           else sfx.flip();
           render();
         }

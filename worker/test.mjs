@@ -315,3 +315,62 @@ try {
 }
 
 console.log('PASS: reconnect credentials, room recovery, featured grace, stale seats, idle deletion, lobby throttling, reconnect round gates, and duplicate messages.');
+
+// Test: Online Last-Chance Imposter Word-Guess Steal
+{
+  const gEngine = new RoomEngine('345678', { isPublic: false, lastChanceGuess: true });
+  gEngine.addPlayer('u1', 'Alice');
+  gEngine.addPlayer('u2', 'Bob');
+  gEngine.addPlayer('u3', 'Carol');
+  assert.equal(gEngine.startGame('u1').ok, true);
+  gEngine.playerReady('u1');
+  gEngine.playerReady('u2');
+  gEngine.playerReady('u3');
+  while (gEngine.phase === 'clues') {
+    gEngine.submitClue(gEngine.turnOrder[gEngine.turnIndex], 'Clue');
+  }
+  const impId = Array.from(gEngine.imposterIds)[0];
+  const crewIds = ['u1', 'u2', 'u3'].filter((id) => id !== impId);
+  gEngine.castVote(crewIds[0], impId);
+  gEngine.castVote(crewIds[1], impId);
+  gEngine.castVote(impId, crewIds[0]);
+  assert.equal(gEngine.phase, 'imposter_guess', 'Caught human imposter should enter imposter_guess phase');
+  const impState = gEngine.getStateForPlayer(impId).room;
+  assert.equal(impState.guess.options.length, 4);
+  assert.equal('word' in impState.myRole, false, 'Secret word must remain isolated during imposter_guess');
+  assert.equal(gEngine.submitGuess(crewIds[0], gEngine.secretWord).ok, false, 'Non-imposter cannot submit guess');
+  const stealRes = gEngine.handleMessage(impId, { type: 'submit_guess', word: gEngine.secretWord });
+  assert.equal(stealRes.ok, true);
+  assert.equal(stealRes.stole, true);
+  assert.equal(gEngine.phase, 'result');
+  assert.equal(gEngine.result.crewWon, false, 'Correct imposter steal flips round to imposter win');
+  assert.equal(gEngine.result.imposterStole, true);
+  console.log('PASS: Online Last-Chance Imposter Word-Guess Steal verified.');
+}
+
+// Test: Caught Imposter disconnecting during imposter_guess resolves cleanly after grace expires
+{
+  const dEngine = new RoomEngine('456789', { isPublic: false, lastChanceGuess: true });
+  dEngine.addPlayer('u1', 'Alice');
+  dEngine.addPlayer('u2', 'Bob');
+  dEngine.addPlayer('u3', 'Carol');
+  dEngine.startGame('u1');
+  ['u1', 'u2', 'u3'].forEach((id) => dEngine.playerReady(id));
+  while (dEngine.phase === 'clues') {
+    dEngine.submitClue(dEngine.turnOrder[dEngine.turnIndex], 'Hint');
+  }
+  const impId = Array.from(dEngine.imposterIds)[0];
+  const crewIds = ['u1', 'u2', 'u3'].filter((id) => id !== impId);
+  dEngine.castVote(crewIds[0], impId);
+  dEngine.castVote(crewIds[1], impId);
+  dEngine.castVote(impId, crewIds[0]);
+  assert.equal(dEngine.phase, 'imposter_guess');
+  dEngine.disconnectPlayer(impId);
+  assert.equal(dEngine.phase, 'imposter_guess', 'Should wait during reconnect grace');
+  assert.ok(Number.isFinite(dEngine.reconnectCheckAt()), 'Alarm should be scheduled for imposter_guess grace');
+  dEngine.reconnectUntil = Date.now() - 1;
+  assert.equal(dEngine.finishReconnectGrace(), true);
+  assert.equal(dEngine.phase, 'result');
+  assert.equal(dEngine.result.crewWon, true);
+  console.log('PASS: imposter_guess disconnect grace recovery verified.');
+}
